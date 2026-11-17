@@ -23,7 +23,19 @@ Abra o app **Expo Go** no celular e escaneie o QR code.
 - `src/lib/viewerHtml.ts`: página HTML do leitor (pdf.js), sem dependências do Expo
 - `src/lib/library.ts`: importação e persistência dos PDFs
 
-## Gerar APK / build de loja
+## Baixar o APK
+Os APKs ficam na página [Releases](https://github.com/linikerdg/pdf-reader/releases).
+O workflow `.github/workflows/android-release.yml` compila e publica um release
+sempre que uma tag `v*` é enviada:
 ```bash
-npx eas-cli@latest build -p android --profile preview
+git tag v1.0.1
+git push origin v1.0.1
 ```
+Antes de cada versão nova, aumente `version` e `android.versionCode` no `app.json`.
+
+> O APK é assinado com a chave de debug, que muda a cada build. Para atualizar
+> o app pode ser preciso desinstalar a versão anterior.
+
+## pdf.js
+`assets/pdfjs/*.txt` são cópias de `build/pdf.min.js` e `build/pdf.worker.min.js`
+do pacote `pdfjs-dist@3.11.174`.

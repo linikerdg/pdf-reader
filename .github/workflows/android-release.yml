@@ -1,0 +1,66 @@
+name: Android APK
+
+# Gera o APK ao enviar uma tag "v*" (ex.: v1.0.0) e anexa ao release do GitHub.
+# Também pode ser rodado manualmente (Actions > Android APK > Run workflow);
+# nesse caso o APK fica só como artefato da execução.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Gerar projeto Android
+        run: npx expo prebuild --platform android --no-install
+
+      - name: Compilar APK
+        working-directory: android
+        run: ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a,armeabi-v7a --no-daemon
+
+      - name: Renomear APK
+        id: apk
+        run: |
+          NAME="leitor-pdf-${GITHUB_REF_NAME//\//-}.apk"
+          cp android/app/build/outputs/apk/release/app-release.apk "$NAME"
+          echo "file=$NAME" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apk
+          path: ${{ steps.apk.outputs.file }}
+
+      - name: Publicar release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" "${{ steps.apk.outputs.file }}" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" "${{ steps.apk.outputs.file }}" \
+              --title "Leitor PDF $GITHUB_REF_NAME" \
+              --notes "APK para Android. Baixe o arquivo \`.apk\` abaixo e abra no celular (permita instalar de fontes desconhecidas quando o Android pedir)."
+          fi
